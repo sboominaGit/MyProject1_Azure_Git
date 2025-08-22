@@ -1,0 +1,278 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "myproject1adf"
+		},
+		"AzureDatabricks1_LS_accessToken": {
+			"type": "secureString",
+			"metadata": "Secure string for 'accessToken' of 'AzureDatabricks1_LS'"
+		},
+		"AzureBlobStorage1_LS_properties_typeProperties_serviceEndpoint": {
+			"type": "string",
+			"defaultValue": "https://myproject1stg.blob.core.windows.net/"
+		},
+		"AzureDatabricks1_LS_properties_typeProperties_existingClusterId": {
+			"type": "string",
+			"defaultValue": "0821-155520-783hvl4i"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/myproject1_pipline')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "check_file_exist",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "DelimitedText1",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"fieldList": [
+								"exists",
+								"childItems"
+							],
+							"storeSettings": {
+								"type": "AzureBlobStorageReadSettings",
+								"recursive": true,
+								"enablePartitionDiscovery": false
+							},
+							"formatSettings": {
+								"type": "DelimitedTextReadSettings"
+							}
+						}
+					},
+					{
+						"name": "If_file_exist",
+						"type": "IfCondition",
+						"dependsOn": [
+							{
+								"activity": "check_file_exist",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@activity('check_file_exist').output.exists",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "Transform_data",
+						"type": "DatabricksNotebook",
+						"dependsOn": [
+							{
+								"activity": "SetFileName",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebookPath": "/Users/sivamathi.boominathan@gmail.com/MyProject1_Azure_Git/databricks/01.Transformation/01.Transform_file",
+							"baseParameters": {
+								"input_file_name": {
+									"value": "@variables('input_file_name')",
+									"type": "Expression"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "AzureDatabricks1_LS",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "SetFileName",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "If_file_exist",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "input_file_name",
+							"value": {
+								"value": "@json(string(first(activity('check_file_exist').output.childItems))).name",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"variables": {
+					"input_file_name": {
+						"type": "String"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/DelimitedText1')]",
+				"[concat(variables('factoryId'), '/linkedServices/AzureDatabricks1_LS')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DelimitedText1')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureBlobStorage1_LS",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"container": "landing"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "Name",
+						"type": "String"
+					},
+					{
+						"name": "Age",
+						"type": "String"
+					},
+					{
+						"name": "Gender",
+						"type": "String"
+					},
+					{
+						"name": "Blood Type",
+						"type": "String"
+					},
+					{
+						"name": "Medical Condition",
+						"type": "String"
+					},
+					{
+						"name": "Date of Admission",
+						"type": "String"
+					},
+					{
+						"name": "Doctor",
+						"type": "String"
+					},
+					{
+						"name": "Hospital",
+						"type": "String"
+					},
+					{
+						"name": "Insurance Provider",
+						"type": "String"
+					},
+					{
+						"name": "Billing Amount",
+						"type": "String"
+					},
+					{
+						"name": "Room Number",
+						"type": "String"
+					},
+					{
+						"name": "Admission Type",
+						"type": "String"
+					},
+					{
+						"name": "Discharge Date",
+						"type": "String"
+					},
+					{
+						"name": "Medication",
+						"type": "String"
+					},
+					{
+						"name": "Test Results",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureBlobStorage1_LS')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AzureBlobStorage1_LS')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobStorage",
+				"typeProperties": {
+					"serviceEndpoint": "[parameters('AzureBlobStorage1_LS_properties_typeProperties_serviceEndpoint')]",
+					"accountKind": "StorageV2"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AzureDatabricks1_LS')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureDatabricks",
+				"typeProperties": {
+					"domain": "https://adb-3548129356293657.17.azuredatabricks.net",
+					"accessToken": {
+						"type": "SecureString",
+						"value": "[parameters('AzureDatabricks1_LS_accessToken')]"
+					},
+					"existingClusterId": "[parameters('AzureDatabricks1_LS_properties_typeProperties_existingClusterId')]"
+				}
+			},
+			"dependsOn": []
+		}
+	]
+}
