@@ -1,0 +1,119 @@
+{
+	"name": "myproject1_pipline",
+	"properties": {
+		"activities": [
+			{
+				"name": "check_file_exist",
+				"type": "GetMetadata",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataset": {
+						"referenceName": "DelimitedText1",
+						"type": "DatasetReference"
+					},
+					"fieldList": [
+						"exists",
+						"childItems"
+					],
+					"storeSettings": {
+						"type": "AzureBlobStorageReadSettings",
+						"enablePartitionDiscovery": false
+					},
+					"formatSettings": {
+						"type": "DelimitedTextReadSettings"
+					}
+				}
+			},
+			{
+				"name": "If_file_exist",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "check_file_exist",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@activity('check_file_exist').output.exists",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Transform_data",
+				"type": "DatabricksNotebook",
+				"dependsOn": [
+					{
+						"activity": "SetFileName",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebookPath": "/Users/sivamathi.boominathan@gmail.com/MyProject1_Azure_Git/databricks/01.Transformation/01.Transform_file",
+					"baseParameters": {
+						"input_file_name": {
+							"value": "@variables('input_file_name')",
+							"type": "Expression"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "AzureDatabricks1_LS",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "SetFileName",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "If_file_exist",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "input_file_name",
+					"value": {
+						"value": "@json(string(first(activity('check_file_exist').output.childItems))).name",
+						"type": "Expression"
+					}
+				}
+			}
+		],
+		"variables": {
+			"input_file_name": {
+				"type": "String"
+			}
+		},
+		"annotations": []
+	}
+}
